@@ -6,9 +6,11 @@ import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Properties;
 import org.jsoup.Connection;
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -20,13 +22,29 @@ public class AmazonCheckerTelegram {
             //Settings loaded from config.properties
             Properties prop = new Properties();
             prop.load(settings);
-
             String tokenId = prop.getProperty("tokenId");
             String chatId = prop.getProperty("chatId");
             int delay = Integer.parseInt(prop.getProperty("delay")); //Recommended delay: > 6 seconds, prevent the system from kicking you out
             File items = new File(prop.getProperty("file"));
-
+            
+            //If the settings are not modified by user, throw an error
+            if (tokenId.contains("insert") || chatId.contains("insert")) {
+                System.err.println("[ERROR] Set the parameters 'tokenId' and 'chatId' in the file " + items);
+                System.exit(1);
+            } else { //If the tokenId is invalid, throw an error
+                try {
+                    Connection check = Jsoup.connect("https://api.telegram.org/bot" + tokenId + "/getMe").ignoreContentType(true);
+                    check.get();
+                } catch (HttpStatusException e) {
+                    System.err.println("[ERROR] Invalid tokenId");
+                    System.exit(2);
+                } catch (UnknownHostException c) { //If the internet connection is invalid, thrown an error
+                    System.err.println("[ERROR] No internet connection");
+                    System.exit(3);
+                }
+            }
             //End of the settings code
+
             try {
                 //Reading the items file
                 String riga;
@@ -35,6 +53,7 @@ public class AmazonCheckerTelegram {
                 while ((riga = br.readLine()) != null) {
                     links.add(riga);
                 }
+                br.close(); //Close the buffer
                 //End of reading the items file
 
                 while (true) { //Endless loop. Continue until code execution stops.
